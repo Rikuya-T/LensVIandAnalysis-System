@@ -39,6 +39,9 @@ wheels/
 .coverage
 htmlcov/
 
+# Runtime logs
+logs/
+
 # Environment
 .env
 .env.local

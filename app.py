@@ -111,9 +111,31 @@ def summarize_dimension(df: pd.DataFrame, key_col: str, defect_cols: List[str]) 
 
 def top_defects(df: pd.DataFrame, defect_cols: List[str], top_n: int = 10) -> pd.DataFrame:
     sums = df[defect_cols].sum().sort_values(ascending=False)
-    result = sums.head(top_n).reset_index()
-    result.columns = ["不適合項目", "検出数"]
-    return result
+    top_items = sums.head(top_n)
+
+    rows = []
+    for defect_name, defect_count in top_items.items():
+        model_breakdown = (
+            df.groupby("機種", dropna=False)[defect_name]
+            .sum()
+            .sort_values(ascending=False)
+        )
+        model_breakdown = model_breakdown[model_breakdown > 0]
+
+        breakdown_text = " / ".join(
+            f"{model_name}:{int(count) if float(count).is_integer() else round(float(count), 2)}"
+            for model_name, count in model_breakdown.items()
+        )
+
+        rows.append(
+            {
+                "不適合項目": defect_name,
+                "検出数": defect_count,
+                "機種別内訳": breakdown_text,
+            }
+        )
+
+    return pd.DataFrame(rows)
 
 
 def detect_issues(summary_df: pd.DataFrame, key_col: str, fail_rate_threshold: float) -> pd.DataFrame:
@@ -237,7 +259,7 @@ if filtered.empty:
 else:
     top_defect_df = top_defects(filtered, defect_columns, top_n=15)
     st.dataframe(top_defect_df, use_container_width=True)
-    st.bar_chart(top_defect_df.set_index("不適合項目"))
+    st.bar_chart(top_defect_df.set_index("不適合項目")[["検出数"]])
 
 # CSV export
 st.subheader("集計結果のダウンロード")
